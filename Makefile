@@ -13,13 +13,13 @@ CXX=g++
 CXXFLAGS=-O3 -std=c++17
 
 # CUDA variables
-# Default to RTX 4090 (Compute 8.9, Ada Lovelace). Override with COMPUTE_CAP=XX for other GPUs
-# Common values: 8.9 (RTX 4090), 8.6 (RTX 3090), 7.5 (RTX 2080), 6.1 (GTX 1080)
-COMPUTE_CAP=89
+# Default to RTX 5090 (Compute 12.0, Blackwell). Override with COMPUTE_CAP=XX for other GPUs
+# Common values: 12.0 (RTX 5090), 8.9 (RTX 4090), 8.6 (RTX 3090), 7.5 (RTX 2080), 6.1 (GTX 1080)
+COMPUTE_CAP=120
 NVCC=nvcc
 
-# Phase 3: Enable PTX optimizations for modern GPUs (Turing 7.5+)
-# LOP3 and funnel shifts available on Compute 7.5+
+# Phase 3: Enable PTX optimizations for modern GPUs (Turing 7.5+ through Blackwell 12.0+)
+# LOP3 and funnel shifts available on Compute 7.5+ (Turing, Ampere, Ada, Blackwell)
 NVCC_PHASE3_FLAGS=-DUSE_FAST_MATH_PTX
 
 NVCCFLAGS=-std=c++17 \

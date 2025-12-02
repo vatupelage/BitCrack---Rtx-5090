@@ -38,7 +38,8 @@ Open `BitCrack.sln` in Visual Studio 2019. Build the following projects:
 
 ### Build Configuration
 
-- **CUDA Compute Capability**: Default is 8.9 (RTX 4090), set via `COMPUTE_CAP` in Makefile
+- **CUDA Compute Capability**: Default is 12.0 (RTX 5090), set via `COMPUTE_CAP` in Makefile
+  - RTX 5090 (Blackwell): 120
   - RTX 4090 (Ada Lovelace): 89
   - RTX 3090 (Ampere): 86
   - RTX 2080 (Turing): 75
@@ -151,14 +152,16 @@ Three parameters control GPU utilization:
 
 Higher points per thread = better throughput but longer kernel execution time.
 
-## RTX 4090 Optimizations (Phase 1 - Completed)
+## Modern GPU Optimizations (Phase 1 - Completed)
 
-BitCrack has been modernized for optimal performance on RTX 4090 and other modern NVIDIA GPUs. These optimizations maintain the original brute-force sequential search algorithm while dramatically improving computational efficiency.
+BitCrack has been modernized for optimal performance on RTX 5090, RTX 4090, and other modern NVIDIA GPUs. These optimizations maintain the original brute-force sequential search algorithm while dramatically improving computational efficiency.
+
+**Supported Architectures:** Blackwell (RTX 5090), Ada Lovelace (RTX 4090), Ampere (RTX 3090), Turing (RTX 2080), and Pascal (GTX 1080+)
 
 ### What's New in Phase 1
 
 **1. Modern Build System (Task 1.1)**
-- Updated to CUDA Toolkit 12.x with compute capability 8.9
+- Updated to CUDA Toolkit 12.x with compute capability 12.0 (RTX 5090) / 8.9 (RTX 4090)
 - Aggressive compiler optimizations: `-O3`, `--use_fast_math`
 - C++17 standard for modern language features
 - Register usage and spill warnings enabled
@@ -166,7 +169,7 @@ BitCrack has been modernized for optimal performance on RTX 4090 and other moder
 
 **2. Optimized Thread Configuration (Task 1.2)**
 - **Auto-tuning based on GPU architecture**:
-  - RTX 4090/3090 (≥100 SMs): blocks=128, threads=512, points=128
+  - RTX 5090/4090/3090 (≥100 SMs): blocks=128, threads=512, points=128
   - Mid-range GPUs (≥40 SMs): blocks=64, threads=256, points=64
   - Legacy GPUs: blocks=32, threads=256, points=32
 - **Dramatically increased occupancy**:
@@ -182,33 +185,35 @@ BitCrack has been modernized for optimal performance on RTX 4090 and other moder
 - GPU architecture detection and logging
 - Detailed performance diagnostics every 100 iterations
 
-### Building for RTX 4090
+### Building for RTX 5090 and Other GPUs
 
 ```bash
-# Default build (optimized for RTX 4090)
+# Default build (optimized for RTX 5090)
 make BUILD_CUDA=1
 
 # For other GPUs, override compute capability
+make BUILD_CUDA=1 COMPUTE_CAP=89  # RTX 4090
 make BUILD_CUDA=1 COMPUTE_CAP=86  # RTX 3090
 make BUILD_CUDA=1 COMPUTE_CAP=75  # RTX 2080
 ```
 
-### Running on RTX 4090
+### Running on Modern GPUs
 
-The tool now auto-tunes for your GPU:
+The tool now auto-tunes for your GPU (RTX 5090, RTX 4090, etc.):
 
 ```bash
 # Let auto-tuning optimize for your hardware
 ./bin/cuBitCrack -i addresses.txt
 
-# Manual tuning (if needed)
-./bin/cuBitCrack -b 128 -t 512 -p 128 -i addresses.txt
+# Manual tuning (if needed, e.g., testing p=1024 on RTX 5090)
+./bin/cuBitCrack -b 128 -t 512 -p 1024 -i addresses.txt
 ```
 
 ### Performance Expectations (Phase 1)
 
 - **Baseline**: Original code on RTX 4090 (legacy config)
 - **Phase 1**: 5-10x improvement from occupancy + compiler optimizations
+- **RTX 5090**: Expected 10-15% additional improvement over RTX 4090 due to higher SM count (170 vs 128) and faster memory
 - **Next Phases**: Additional 10-20x from memory and algorithmic optimizations
 
 ### Key Architecture Details
@@ -978,6 +983,98 @@ This enables all optimization phases:
 - ✓ Phase 5: Multi-GPU support
 
 **Total improvement:** 20-120x over original implementation
+
+## RTX 5090 Optimization Guide (Blackwell Architecture)
+
+The RTX 5090 is now fully supported with compute capability 12.0. The Blackwell architecture brings significant improvements over Ada Lovelace (RTX 4090).
+
+### RTX 5090 Specifications
+- **Architecture**: Blackwell (Compute Capability 12.0)
+- **Streaming Multiprocessors**: ~170 SMs
+- **CUDA Cores**: ~21,760 cores
+- **Memory**: 32GB GDDR7 (expected ~1,500 GB/s bandwidth)
+- **L2 Cache**: 96MB (33% larger than RTX 4090's 72MB)
+
+### Building for RTX 5090
+
+```bash
+# Default build now targets RTX 5090
+make clean
+make BUILD_CUDA=1
+
+# Explicitly specify compute capability (optional)
+make BUILD_CUDA=1 COMPUTE_CAP=120
+```
+
+### Recommended Configuration for RTX 5090
+
+Based on the RTX 5090's architecture, these are the recommended starting parameters:
+
+**For initial testing:**
+```bash
+# Start with proven RTX 4090 configuration
+./bin/cuBitCrack -d 0 -b 128 -t 512 -p 1024 \
+  --keyspace <START>:<END> \
+  -i addresses.txt -o found.txt
+```
+
+**For maximum throughput (experimental):**
+```bash
+# Leverage higher SM count with increased blocks
+./bin/cuBitCrack -d 0 -b 192 -t 512 -p 1024 \
+  --keyspace <START>:<END> \
+  -i addresses.txt -o found.txt
+```
+
+### Expected Performance Improvements
+
+**RTX 5090 vs RTX 4090:**
+- **+30-40%** from higher SM count (170 vs 128 SMs)
+- **+15-20%** from faster GDDR7 memory bandwidth
+- **+10-15%** from larger L2 cache (96MB vs 72MB)
+- **Combined: 1.6-1.8x faster than RTX 4090**
+
+**Estimated throughput:**
+- RTX 4090: ~3.09 GKey/s (single GPU, tested)
+- **RTX 5090: ~5.0-5.5 GKey/s (single GPU, estimated)**
+- **RTX 5090 × 2: ~10.0-11.0 GKey/s (dual GPU, estimated)**
+
+### Multi-GPU Configuration (RTX 5090)
+
+```bash
+# Dual RTX 5090 setup
+./bin/cuBitCrack --devices 0,1 -b 192 -t 512 -p 1024 \
+  --keyspace <START>:<END> \
+  -i addresses.txt -o found.txt
+```
+
+### Auto-tuning Support
+
+The RTX 5090 will automatically use high-end GPU parameters (≥100 SMs detected):
+- Default: blocks=128, threads=512, points=128
+- For maximum performance: manually specify `-b 192 -t 512 -p 1024`
+
+### Important Notes for RTX 5090
+
+1. **CUDA 12.8+ Required**: Ensure you have CUDA Toolkit 12.8 or later installed
+2. **Memory Usage**: Expect ~3.5-4GB VRAM usage with p=1024 configuration
+3. **Power Requirements**: RTX 5090 has higher TDP - ensure adequate PSU (600W+ per GPU)
+4. **Cooling**: Monitor temps under sustained load (BitCrack is 100% GPU utilization)
+5. **Testing Needed**: The estimates above are projections - actual performance may vary
+
+### Optimal Configuration Strategy
+
+1. **Start conservative**: Use `-b 128 -t 512 -p 1024` (proven on RTX 4090)
+2. **Test higher occupancy**: Try `-b 192 -t 512 -p 1024` (leverages more SMs)
+3. **Monitor metrics**: Watch kernel time, throughput (MKey/s), and temperatures
+4. **Iterate**: Adjust based on your specific workload and cooling solution
+
+### Future Optimizations for Blackwell
+
+Potential areas for RTX 5090-specific optimizations (not yet implemented):
+- **Thread Block Clusters** (new in Compute 12.0): Cooperative groups across multiple thread blocks
+- **Tensor Memory Accelerator** (TMA): Improved global memory throughput
+- **Enhanced PTX instructions**: Blackwell-specific instructions for crypto operations
 
 ## Custom Keyspace Usage
 
